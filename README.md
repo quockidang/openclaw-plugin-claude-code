@@ -1,7 +1,6 @@
 # OpenClaw Plugin: Claude Code
 
 [![CI](https://github.com/13rac1/openclaw-plugin-claude-code/actions/workflows/ci.yml/badge.svg)](https://github.com/13rac1/openclaw-plugin-claude-code/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/13rac1/openclaw-plugin-claude-code/graph/badge.svg)](https://codecov.io/gh/13rac1/openclaw-plugin-claude-code)
 [![npm version](https://img.shields.io/npm/v/@13rac1/openclaw-plugin-claude-code.svg)](https://www.npmjs.com/package/@13rac1/openclaw-plugin-claude-code)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](https://nodejs.org/)
