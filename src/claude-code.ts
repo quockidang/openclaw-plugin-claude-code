@@ -12,6 +12,7 @@ import {
   extractTextFromStream,
   parseRateLimitError,
   parseAuthError,
+  parseSessionId,
   type RateLimitInfo,
   type AuthErrorInfo,
 } from "./stream-parser.js";
@@ -244,48 +245,7 @@ export default function register(api: PluginApi): void {
         let lineBuffer = "";
         let rateLimitInfo: RateLimitInfo | null = null;
         let authErrorInfo: AuthErrorInfo | null = null;
-        let detectedClaudeSessionId = "";
-        let finalTextFromAssistant = "";
-        let finalTextFromResult = "";
-
-        const tryCaptureSessionId = (line: string): void => {
-          try {
-            const parsed = JSON.parse(line) as { session_id?: unknown };
-            if (typeof parsed.session_id === "string" && parsed.session_id.length > 0) {
-              detectedClaudeSessionId = parsed.session_id;
-            }
-          } catch {
-            // ignore non-json lines
-          }
-        };
-
-        const tryCaptureFinalText = (line: string): void => {
-          try {
-            const parsed = JSON.parse(line) as {
-              type?: unknown;
-              result?: unknown;
-              message?: { content?: { text?: unknown }[] };
-            };
-            if (
-              parsed.type === "assistant" &&
-              parsed.message?.content &&
-              Array.isArray(parsed.message.content)
-            ) {
-              const text = parsed.message.content
-                .map((c) => (typeof c.text === "string" ? c.text : ""))
-                .join("");
-              if (text.length > 0) {
-                finalTextFromAssistant = text;
-              }
-            }
-            const resultText = typeof parsed.result === "string" ? parsed.result : null;
-            if (resultText && resultText.length > 0) {
-              finalTextFromResult = resultText;
-            }
-          } catch {
-            // ignore non-json lines
-          }
-        };
+        let detectedClaudeSessionId: string | null = null;
 
         // Stream logs in real-time, parsing JSON events as they arrive
         const exitCode = await podmanRunner.streamContainerLogs(containerName, (chunk) => {
@@ -297,8 +257,7 @@ export default function register(api: PluginApi): void {
           for (const line of lines) {
             if (!line.trim()) continue;
 
-            tryCaptureSessionId(line);
-            tryCaptureFinalText(line);
+            detectedClaudeSessionId = parseSessionId(line) ?? detectedClaudeSessionId;
 
             // Check for rate limit error in result events
             const rateLimit = parseRateLimitError(line);
@@ -326,8 +285,7 @@ export default function register(api: PluginApi): void {
 
         // Process any remaining buffered content
         if (lineBuffer.trim()) {
-          tryCaptureSessionId(lineBuffer);
-          tryCaptureFinalText(lineBuffer);
+          detectedClaudeSessionId = parseSessionId(lineBuffer) ?? detectedClaudeSessionId;
 
           // Check for rate limit in final line
           const rateLimit = parseRateLimitError(lineBuffer);
@@ -379,15 +337,6 @@ export default function register(api: PluginApi): void {
           errorType = "crash";
         }
 
-        const canonicalFinalText =
-          finalTextFromAssistant.length > 0 ? finalTextFromAssistant : finalTextFromResult;
-        if (canonicalFinalText.length > 0) {
-          const jobForPath = await sessionManager.getJob(sessionKey, jobId);
-          if (jobForPath?.outputFile) {
-            await fs.writeFile(jobForPath.outputFile, canonicalFinalText);
-          }
-        }
-
         // Update job state
         const updatedJob = await sessionManager.updateJob(sessionKey, jobId, {
           status,
@@ -397,7 +346,7 @@ export default function register(api: PluginApi): void {
           errorMessage,
         });
 
-        if (detectedClaudeSessionId.length > 0) {
+        if (detectedClaudeSessionId) {
           await sessionManager.updateSession(sessionKey, detectedClaudeSessionId);
           console.log(
             `[claude-code] Captured Claude session_id for resume: ${detectedClaudeSessionId}`

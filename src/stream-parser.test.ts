@@ -4,6 +4,7 @@ import {
   extractTextFromStream,
   parseRateLimitError,
   parseAuthError,
+  parseSessionId,
 } from "./stream-parser.js";
 
 describe("parseStreamLine", () => {
@@ -326,5 +327,35 @@ describe("parseAuthError", () => {
   it("returns null for non-object input", () => {
     const result = parseAuthError("[1, 2, 3]");
     expect(result).toBeNull();
+  });
+});
+
+describe("parseSessionId", () => {
+  it("extracts session_id from a JSON line", () => {
+    const line = JSON.stringify({ session_id: "abc-123", type: "system" });
+    expect(parseSessionId(line)).toBe("abc-123");
+  });
+
+  it("returns null for lines without session_id", () => {
+    const line = JSON.stringify({ type: "result", result: "done" });
+    expect(parseSessionId(line)).toBeNull();
+  });
+
+  it("returns null for non-JSON lines", () => {
+    expect(parseSessionId("not valid json")).toBeNull();
+  });
+
+  it("returns null for empty session_id", () => {
+    const line = JSON.stringify({ session_id: "" });
+    expect(parseSessionId(line)).toBeNull();
+  });
+
+  it("returns null for non-string session_id", () => {
+    const line = JSON.stringify({ session_id: 42 });
+    expect(parseSessionId(line)).toBeNull();
+  });
+
+  it("returns null for non-object input", () => {
+    expect(parseSessionId("[1, 2, 3]")).toBeNull();
   });
 });
