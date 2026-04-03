@@ -12,6 +12,7 @@ import {
   extractTextFromStream,
   parseRateLimitError,
   parseAuthError,
+  parseSessionId,
   type RateLimitInfo,
   type AuthErrorInfo,
 } from "./stream-parser.js";
@@ -244,6 +245,7 @@ export default function register(api: PluginApi): void {
         let lineBuffer = "";
         let rateLimitInfo: RateLimitInfo | null = null;
         let authErrorInfo: AuthErrorInfo | null = null;
+        let detectedClaudeSessionId: string | null = null;
 
         // Stream logs in real-time, parsing JSON events as they arrive
         const exitCode = await podmanRunner.streamContainerLogs(containerName, (chunk) => {
@@ -254,6 +256,8 @@ export default function register(api: PluginApi): void {
 
           for (const line of lines) {
             if (!line.trim()) continue;
+
+            detectedClaudeSessionId = parseSessionId(line) ?? detectedClaudeSessionId;
 
             // Check for rate limit error in result events
             const rateLimit = parseRateLimitError(line);
@@ -281,6 +285,8 @@ export default function register(api: PluginApi): void {
 
         // Process any remaining buffered content
         if (lineBuffer.trim()) {
+          detectedClaudeSessionId = parseSessionId(lineBuffer) ?? detectedClaudeSessionId;
+
           // Check for rate limit in final line
           const rateLimit = parseRateLimitError(lineBuffer);
           if (rateLimit) {
@@ -339,6 +345,13 @@ export default function register(api: PluginApi): void {
           errorType,
           errorMessage,
         });
+
+        if (detectedClaudeSessionId) {
+          await sessionManager.updateSession(sessionKey, detectedClaudeSessionId);
+          console.log(
+            `[claude-code] Captured Claude session_id for resume: ${detectedClaudeSessionId}`
+          );
+        }
 
         // Clear active job
         await sessionManager.setActiveJob(sessionKey, null);
@@ -506,16 +519,6 @@ export default function register(api: PluginApi): void {
         const containerStatus = await podmanRunner.getContainerStatus(job.containerName);
 
         if (containerStatus && !containerStatus.running) {
-          // Container finished - parse JSON logs and extract text
-          const logs = await podmanRunner.getContainerLogs(job.containerName);
-          if (logs) {
-            const lines = logs.split("\n").filter((l) => l.trim());
-            const text = extractTextFromStream(lines);
-            if (text) {
-              await sessionManager.appendJobOutput(sessionKey, jobId, text);
-            }
-          }
-
           const status = containerStatus.exitCode === 0 ? "completed" : "failed";
           const completedAt = containerStatus.finishedAt ?? new Date().toISOString();
           job = await sessionManager.updateJob(sessionKey, jobId, {

@@ -482,6 +482,114 @@ describe("register", () => {
         })
       );
     });
+
+    it("captures session_id from stream and calls updateSession", async () => {
+      vi.mocked(fs.access).mockRejectedValue(new Error("ENOENT"));
+      process.env.ANTHROPIC_API_KEY = "test-key";
+      mockPodmanRunner.checkImage.mockResolvedValue(true);
+      mockSessionManager.getOrCreateSession.mockResolvedValue({
+        sessionKey: "session-test-id",
+        claudeSessionId: null,
+      });
+      mockSessionManager.getActiveJob.mockResolvedValue(null);
+      mockSessionManager.workspaceDir.mockReturnValue("/tmp/workspace");
+      mockSessionManager.createJob.mockResolvedValue({
+        jobId: "job-123",
+        sessionKey: "session-test-id",
+        status: "pending",
+      });
+      mockPodmanRunner.startDetached.mockResolvedValue({
+        containerName: "claude-session-test-id",
+        containerId: "abc123",
+      });
+      mockSessionManager.updateJob.mockResolvedValue({});
+      mockSessionManager.setActiveJob.mockResolvedValue({});
+      mockSessionManager.getJob.mockResolvedValue({
+        jobId: "job-123",
+        status: "running",
+        startedAt: new Date().toISOString(),
+      });
+      mockSessionManager.updateSession.mockResolvedValue({});
+
+      // Mock streamContainerLogs to emit a session_id event
+      mockPodmanRunner.streamContainerLogs.mockImplementation(
+        async (_name: string, onChunk: (chunk: string) => void) => {
+          onChunk('{"session_id":"claude-sess-xyz","type":"system"}\n');
+          onChunk('{"event":{"type":"content_block_delta","delta":{"text":"Hello"}}}\n');
+          return 0;
+        }
+      );
+
+      register(mockApi);
+      const toolConfig = mockApi.registerTool.mock.calls.find(
+        (call: unknown[]) => (call[0] as { name: string }).name === "claude_code_start"
+      )?.[0] as {
+        execute: (
+          id: string,
+          params: Record<string, unknown>
+        ) => Promise<{ content: { type: string; text: string }[] }>;
+      };
+
+      await toolConfig.execute("test-id", { prompt: "hello" });
+      // Wait for background watcher to complete
+      await new Promise((r) => setImmediate(r));
+
+      expect(mockSessionManager.updateSession).toHaveBeenCalledWith(
+        "session-test-id",
+        "claude-sess-xyz"
+      );
+    });
+
+    it("does not call updateSession when no session_id in stream", async () => {
+      vi.mocked(fs.access).mockRejectedValue(new Error("ENOENT"));
+      process.env.ANTHROPIC_API_KEY = "test-key";
+      mockPodmanRunner.checkImage.mockResolvedValue(true);
+      mockSessionManager.getOrCreateSession.mockResolvedValue({
+        sessionKey: "session-test-id",
+        claudeSessionId: null,
+      });
+      mockSessionManager.getActiveJob.mockResolvedValue(null);
+      mockSessionManager.workspaceDir.mockReturnValue("/tmp/workspace");
+      mockSessionManager.createJob.mockResolvedValue({
+        jobId: "job-123",
+        sessionKey: "session-test-id",
+        status: "pending",
+      });
+      mockPodmanRunner.startDetached.mockResolvedValue({
+        containerName: "claude-session-test-id",
+        containerId: "abc123",
+      });
+      mockSessionManager.updateJob.mockResolvedValue({});
+      mockSessionManager.setActiveJob.mockResolvedValue({});
+      mockSessionManager.getJob.mockResolvedValue({
+        jobId: "job-123",
+        status: "running",
+        startedAt: new Date().toISOString(),
+      });
+
+      // Mock streamContainerLogs without session_id
+      mockPodmanRunner.streamContainerLogs.mockImplementation(
+        async (_name: string, onChunk: (chunk: string) => void) => {
+          onChunk('{"event":{"type":"content_block_delta","delta":{"text":"Hello"}}}\n');
+          return 0;
+        }
+      );
+
+      register(mockApi);
+      const toolConfig = mockApi.registerTool.mock.calls.find(
+        (call: unknown[]) => (call[0] as { name: string }).name === "claude_code_start"
+      )?.[0] as {
+        execute: (
+          id: string,
+          params: Record<string, unknown>
+        ) => Promise<{ content: { type: string; text: string }[] }>;
+      };
+
+      await toolConfig.execute("test-id", { prompt: "hello" });
+      await new Promise((r) => setImmediate(r));
+
+      expect(mockSessionManager.updateSession).not.toHaveBeenCalled();
+    });
   });
 
   describe("claude_code_status tool execute", () => {

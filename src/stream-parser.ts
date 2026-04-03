@@ -82,6 +82,26 @@ export function extractTextFromStream(lines: string[]): string {
 }
 
 /**
+ * Extract session_id from a stream-json line, if present.
+ * Claude Code emits session_id as a top-level field on certain events.
+ */
+export function parseSessionId(line: string): string | null {
+  try {
+    const parsed: unknown = JSON.parse(line);
+    if (typeof parsed !== "object" || parsed === null) {
+      return null;
+    }
+    const sessionId = (parsed as { session_id?: unknown }).session_id;
+    if (typeof sessionId === "string" && sessionId.length > 0) {
+      return sessionId;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Check if a line is a result event indicating a rate limit error.
  * Returns rate limit info if detected, null otherwise.
  */
