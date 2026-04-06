@@ -7,10 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-04-05
+
+### Added
+
+- Capture Claude Code `session_id` from stream output for multi-turn `--resume` support (PR #1, PR #3)
+- Pass through `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, and `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` env vars into containers for proxy/gateway setups (PR #2)
+
 ### Fixed
 
 - Remove `noexec` from `/tmp` tmpfs mount so compilers (Go, Rust, C) can execute test binaries
 - Increase `/tmp` tmpfs size from 64MB to 512MB for build artifacts
+- Remove duplicate output append in `claude_code_status` that re-parsed full container logs (PR #3)
+
+### Changed
+
+- Increase default container memory from 512MB to 2GB
+- Replace Codecov with `vitest-coverage-report-action` for PR coverage reports
 
 ## [1.0.12] - 2026-02-23
 
@@ -69,7 +82,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configurable network isolation
 - Optional AppArmor MAC enforcement
 
-[Unreleased]: https://github.com/13rac1/openclaw-plugin-claude-code/compare/v1.0.12...HEAD
+[Unreleased]: https://github.com/13rac1/openclaw-plugin-claude-code/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/13rac1/openclaw-plugin-claude-code/compare/v1.0.12...v1.1.0
 [1.0.12]: https://github.com/13rac1/openclaw-plugin-claude-code/compare/v1.0.11...v1.0.12
 [1.0.11]: https://github.com/13rac1/openclaw-plugin-claude-code/compare/v1.0.0...v1.0.11
 [1.0.0]: https://github.com/13rac1/openclaw-plugin-claude-code/releases/tag/v1.0.0

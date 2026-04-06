@@ -41,7 +41,7 @@ describe("PodmanRunner", () => {
     image: "openclaw-claude-code:latest",
     startupTimeout: 30,
     idleTimeout: 120,
-    memory: "512m",
+    memory: "2g",
     cpus: "1.0",
     network: "none",
     maxOutputSize: 0, // Unlimited by default for existing tests

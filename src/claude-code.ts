@@ -46,7 +46,7 @@ const DEFAULT_CONFIG: ClaudeCodePluginConfig = {
   runtime: "podman",
   startupTimeout: 30, // Container must produce output within 30s
   idleTimeout: 120, // Container silent for 120s = hung
-  memory: "512m",
+  memory: "2g",
   cpus: "1.0",
   network: "bridge", // Needs network for Anthropic API access
   sessionsDir: "~/.openclaw/claude-sessions",

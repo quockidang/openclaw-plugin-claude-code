@@ -147,7 +147,7 @@ Add to your `openclaw.json`:
           "runtime": "podman",
           "startupTimeout": 30,
           "idleTimeout": 120,
-          "memory": "512m",
+          "memory": "2g",
           "cpus": "1.0",
           "network": "bridge",
           "sessionsDir": "~/.openclaw/claude-sessions",
@@ -168,7 +168,7 @@ Add to your `openclaw.json`:
 | `runtime` | string | `podman` | Container runtime (`podman` or `docker`) |
 | `startupTimeout` | number | `30` | Seconds to wait for container to produce first output |
 | `idleTimeout` | number | `120` | Kill container after this many seconds of no output |
-| `memory` | string | `512m` | Memory limit for containers |
+| `memory` | string | `2g` | Memory limit for containers |
 | `cpus` | string | `1.0` | CPU limit for containers |
 | `network` | string | `bridge` | Network mode (`none`, `bridge`, `host`) |
 | `sessionsDir` | string | `~/.openclaw/claude-sessions` | Directory for session metadata |

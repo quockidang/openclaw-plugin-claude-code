@@ -26,7 +26,7 @@ async function main(): Promise<void> {
     image: "openclaw-claude-code:latest",
     startupTimeout: 30,
     idleTimeout: 120,
-    memory: "512m",
+    memory: "2g",
     cpus: "1.0",
     network: "bridge",
     maxOutputSize: 10 * 1024 * 1024, // 10MB
