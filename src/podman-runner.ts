@@ -110,7 +110,7 @@ export class PodmanRunner {
 
   async checkImage(): Promise<boolean> {
     return new Promise((resolve) => {
-      const proc = spawn(this.config.runtime, ["image", "exists", this.config.image], {
+      const proc = spawn(this.config.runtime, ["image", "inspect", "--format", "{{.Id}}", this.config.image], {
         stdio: "ignore",
       });
 
@@ -309,7 +309,7 @@ export class PodmanRunner {
       "--detach",
       "--name",
       containerName,
-      "--userns=keep-id:uid=1000,gid=1000",
+      //"--userns=keep-id:uid=1000,gid=1000",
       "--network",
       this.config.network,
       "--cap-drop",

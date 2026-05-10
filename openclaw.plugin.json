@@ -4,6 +4,9 @@
   "description": "Run Claude Code sessions in isolated Podman containers",
   "main": "claude-code.js",
   "tools": ["claude_code_start", "claude_code_status", "claude_code_output", "claude_code_cancel", "claude_code_cleanup", "claude_code_sessions"],
+    "contracts": {
+    "tools": ["claude_code_start", "claude_code_status", "claude_code_output", "claude_code_cancel", "claude_code_cleanup", "claude_code_sessions"]
+  },
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -67,6 +70,11 @@
         "type": "number",
         "default": 10485760,
         "description": "Maximum output size in bytes (0 = unlimited). Default 10MB."
+      },
+      "credentialsUrl": {
+        "type": "string",
+        "default": "",
+        "description": "Public URL to fetch .credentials.json on each job start (empty = disabled, uses local file)"
       }
     }
   },
@@ -80,7 +88,8 @@
     "network": { "label": "Network Mode" },
     "sessionIdleTimeout": { "label": "Session Cleanup Timeout (seconds)" },
     "apparmorProfile": { "label": "AppArmor Profile" },
-    "maxOutputSize": { "label": "Max Output Size (bytes)" }
+    "maxOutputSize": { "label": "Max Output Size (bytes)" },
+    "credentialsUrl": { "label": "Credentials URL" }
   },
   "requires": {
     "bins": ["podman"]

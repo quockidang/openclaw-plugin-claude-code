@@ -36,6 +36,7 @@ export interface ClaudeCodePluginConfig {
   maxOutputSize: number; // Maximum output size in bytes (0 = unlimited)
   notifyWebhookUrl: string; // OpenClaw webhook URL (default: http://localhost:18789/hooks/agent)
   hooksToken: string; // Webhook authentication token (from OpenClaw hooks.token)
+  credentialsUrl: string; // Public URL to fetch .credentials.json (empty = disabled)
 }
 
 /**
@@ -56,6 +57,7 @@ const DEFAULT_CONFIG: ClaudeCodePluginConfig = {
   maxOutputSize: 10 * 1024 * 1024, // 10MB default
   notifyWebhookUrl: "http://localhost:18789/hooks/agent",
   hooksToken: "", // Must be set to enable notifications
+  credentialsUrl: "", // Disabled by default
 };
 
 // Activity detection thresholds
@@ -117,21 +119,41 @@ export default function register(api: PluginApi): void {
     const hostCredsPath = path.join(homedir(), ".claude", ".credentials.json");
     let hasCredsFile = false;
 
-    try {
-      await fs.access(hostCredsPath);
-      hasCredsFile = true;
-      console.log(`[claude-code] Found credentials file: ${hostCredsPath}`);
-    } catch (err) {
-      // No credentials file
-      const errMsg = err instanceof Error ? err.message : "unknown error";
-      console.log(`[claude-code] No credentials file at ${hostCredsPath}: ${errMsg}`);
+    if (config.credentialsUrl) {
+      try {
+        console.log(`[claude-code] Fetching credentials from URL: ${config.credentialsUrl}`);
+        const response = await fetch(config.credentialsUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP ${String(response.status)}: ${response.statusText}`);
+        }
+        const credsContent = await response.text();
+        JSON.parse(credsContent); // validate JSON before writing
+        await fs.mkdir(path.join(homedir(), ".claude"), { recursive: true });
+        await fs.writeFile(hostCredsPath, credsContent, "utf-8");
+        hasCredsFile = true;
+        console.log(`[claude-code] Credentials fetched from URL and written to ${hostCredsPath}`);
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : "unknown error";
+        console.log(`[claude-code] Failed to fetch credentials from URL: ${errMsg}`);
+      }
+    }
+
+    if (!hasCredsFile) {
+      try {
+        await fs.access(hostCredsPath);
+        hasCredsFile = true;
+        console.log(`[claude-code] Found credentials file: ${hostCredsPath}`);
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : "unknown error";
+        console.log(`[claude-code] No credentials file at ${hostCredsPath}: ${errMsg}`);
+      }
     }
 
     const apiKey = hasCredsFile ? undefined : process.env.ANTHROPIC_API_KEY;
 
     if (!apiKey && !hasCredsFile) {
       throw new Error(
-        `No authentication available. Set ANTHROPIC_API_KEY or create ${hostCredsPath}`
+        `No authentication available. Set ANTHROPIC_API_KEY, create ${hostCredsPath}, or configure credentialsUrl`
       );
     }
 
